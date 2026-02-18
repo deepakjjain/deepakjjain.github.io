@@ -1,0 +1,38 @@
+---
+import '../styles/global.css';
+import SEO from '../components/SEO.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+const {
+  title = 'Deepak Jain | Full-Stack Developer',
+  description =
+    'Deepak Jain is a Full-Stack Developer specialising in React, Node.js, and cloud-native web applications. Open to new opportunities — view projects and resume.',
+  image = '/og-image.png',
+} = Astro.props;
+---
+
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="generator" content={Astro.generator} />
+    <SEO title={title} description={description} image={image} />
+  </head>
+  <body class="min-h-screen bg-base-100 text-base-content font-sans antialiased">
+    <!-- Skip to content (WCAG 2.2) -->
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-content focus:rounded-lg focus:font-medium"
+    >
+      Skip to content
+    </a>
+    <slot />
+  </body>
+</html>

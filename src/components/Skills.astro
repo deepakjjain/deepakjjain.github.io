@@ -1,0 +1,72 @@
+---
+const skillGroups = [
+  {
+    label: 'Frontend',
+    icon: '🖥',
+    skills: [
+      'React', 'TypeScript', 'Next.js', 'Astro',
+      'HTML5', 'CSS3', 'Tailwind CSS', 'Redux',
+    ],
+  },
+  {
+    label: 'Backend',
+    icon: '⚙️',
+    skills: [
+      'Node.js', 'Express', 'Python', 'FastAPI',
+      'REST APIs', 'GraphQL', 'WebSockets',
+    ],
+  },
+  {
+    label: 'Database',
+    icon: '🗄',
+    skills: [
+      'PostgreSQL', 'MongoDB', 'Redis', 'MySQL',
+      'Prisma', 'SQLAlchemy',
+    ],
+  },
+  {
+    label: 'DevOps & Cloud',
+    icon: '☁️',
+    skills: [
+      'Docker', 'GitHub Actions', 'AWS', 'GCP',
+      'CI/CD', 'Nginx', 'Linux',
+    ],
+  },
+  {
+    label: 'Tools',
+    icon: '🛠',
+    skills: [
+      'Git', 'VS Code', 'Figma', 'Postman',
+      'Jest', 'Vitest', 'Playwright',
+    ],
+  },
+];
+---
+
+<section id="skills" class="py-24 px-4">
+  <div class="max-w-5xl mx-auto">
+
+    <h2 class="text-3xl sm:text-4xl font-bold mb-16 text-center">
+      Skills <span class="text-primary">Matrix</span>
+    </h2>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      {skillGroups.map(({ label, icon, skills }) => (
+        <div class="bg-base-200 rounded-2xl p-6">
+          <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <span aria-hidden="true">{icon}</span>
+            {label}
+          </h3>
+          <div class="flex flex-wrap gap-2">
+            {skills.map((skill) => (
+              <span class="badge badge-outline badge-sm py-3 px-3 text-sm font-medium">
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>

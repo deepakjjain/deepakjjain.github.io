@@ -1,0 +1,48 @@
+---
+const stats = [
+  { value: '3+', label: 'Years Experience' },
+  { value: '15+', label: 'Projects Shipped' },
+  { value: '5+', label: 'OSS Contributions' },
+];
+---
+
+<section id="about" class="py-24 px-4 bg-base-200">
+  <div class="max-w-4xl mx-auto">
+
+    <h2 class="text-3xl sm:text-4xl font-bold mb-14 text-center">
+      About <span class="text-primary">Me</span>
+    </h2>
+
+    <div class="space-y-5 text-lg text-base-content/75 leading-relaxed mb-14 max-w-2xl mx-auto">
+      <p>
+        I'm a Full-Stack Developer who builds products end-to-end — from clean,
+        responsive interfaces to scalable, cloud-native backends. I care about
+        writing code that's readable, tested, and built to last.
+      </p>
+      <p>
+        My philosophy: favour simple, maintainable solutions over clever ones.
+        Performance and accessibility aren't afterthoughts — they're part of
+        the definition of done.
+      </p>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 sm:gap-6 mb-12 max-w-xl mx-auto">
+      {stats.map(({ value, label }) => (
+        <div class="bg-base-100 rounded-2xl p-6 text-center shadow-sm">
+          <div class="text-3xl sm:text-4xl font-bold text-primary">{value}</div>
+          <div class="text-xs sm:text-sm text-base-content/55 mt-2 leading-snug">{label}</div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Availability badges -->
+    <div class="flex flex-wrap gap-3 justify-center">
+      <span class="badge badge-primary badge-outline badge-lg px-4 py-3">
+        Open to opportunities
+      </span>
+      <span class="badge badge-ghost badge-lg px-4 py-3">Remote-friendly</span>
+    </div>
+
+  </div>
+</section>

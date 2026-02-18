@@ -1,0 +1,89 @@
+---
+const navLinks = [
+  { href: '#about', label: 'About' },
+  { href: '#skills', label: 'Skills' },
+  { href: '#projects', label: 'Projects' },
+  { href: '#contact', label: 'Contact' },
+];
+---
+
+<header class="sticky top-0 z-50 w-full bg-base-100/80 backdrop-blur-md border-b border-base-200">
+  <nav class="navbar max-w-5xl mx-auto px-4" aria-label="Main navigation">
+
+    <!-- Logo -->
+    <div class="navbar-start">
+      <a href="#" class="btn btn-ghost text-lg font-bold tracking-tight">
+        Deepak Jain
+      </a>
+    </div>
+
+    <!-- Desktop links -->
+    <div class="navbar-end hidden lg:flex items-center gap-2">
+      <ul class="menu menu-horizontal gap-1 p-0">
+        {navLinks.map(({ href, label }) => (
+          <li>
+            <a href={href} class="rounded-lg font-medium hover:text-primary transition-colors">
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <a
+        href="/resume.pdf"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn btn-primary btn-sm ml-2"
+      >
+        Resume
+      </a>
+    </div>
+
+    <!-- Mobile hamburger -->
+    <div class="navbar-end lg:hidden">
+      <div class="dropdown dropdown-end">
+        <button
+          tabindex="0"
+          class="btn btn-ghost btn-square"
+          aria-label="Open navigation menu"
+          aria-expanded="false"
+          aria-haspopup="true"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
+        <ul
+          tabindex="0"
+          class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-base-200 rounded-box w-48"
+        >
+          {navLinks.map(({ href, label }) => (
+            <li><a href={href} class="font-medium">{label}</a></li>
+          ))}
+          <li class="mt-1">
+            <a
+              href="/resume.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-primary font-medium"
+            >
+              Resume ↗
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+  </nav>
+</header>
