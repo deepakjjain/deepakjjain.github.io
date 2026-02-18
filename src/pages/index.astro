@@ -21,7 +21,7 @@ const projects = (await getCollection('projects'))
     <Skills />
 
     <!-- Projects -->
-    <section id="projects" class="py-24 px-4">
+    <section id="projects" data-anim-section class="py-24 px-4">
       <div class="max-w-5xl mx-auto">
 
         <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-center">
@@ -31,7 +31,7 @@ const projects = (await getCollection('projects'))
           Selected case studies — problem, architecture decisions, and measurable outcomes.
         </p>
 
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div data-anim-group class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
             <ProjectCard project={project} />
           ))}
@@ -43,7 +43,7 @@ const projects = (await getCollection('projects'))
     <GitHubActivity />
 
     <!-- Contact -->
-    <section id="contact" class="py-24 px-4">
+    <section id="contact" data-anim-section class="py-24 px-4">
       <div class="max-w-2xl mx-auto text-center">
 
         <h2 class="text-3xl sm:text-4xl font-bold mb-6">
@@ -83,5 +83,49 @@ const projects = (await getCollection('projects'))
   <footer class="py-8 px-4 bg-base-200 border-t border-base-300 text-center text-base-content/45 text-sm">
     <p>© 2026 Deepak Jain · Built with Astro, Tailwind CSS & DaisyUI</p>
   </footer>
+
+<!-- GSAP ScrollTrigger — section headings + staggered card groups -->
+<script>
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const prefersReducedMotion = window.matchMedia(
+    '(prefers-reduced-motion: reduce)'
+  ).matches;
+
+  if (!prefersReducedMotion) {
+    // Fade-in section headings as each section enters the viewport
+    document.querySelectorAll<HTMLElement>('[data-anim-section]').forEach((section) => {
+      const heading = section.querySelector('h2');
+      if (!heading) return;
+      gsap.from(heading, {
+        scrollTrigger: { trigger: section, start: 'top 78%', once: true },
+        opacity: 0,
+        y: 22,
+        duration: 0.65,
+        ease: 'power2.out',
+      });
+    });
+
+    // Stagger-reveal direct children of every [data-anim-group] container
+    document.querySelectorAll<HTMLElement>('[data-anim-group]').forEach((group) => {
+      const children = Array.from(group.children) as HTMLElement[];
+      if (!children.length) return;
+      gsap.from(children, {
+        scrollTrigger: { trigger: group, start: 'top 82%', once: true },
+        opacity: 0,
+        y: 32,
+        duration: 0.65,
+        stagger: 0.1,
+        ease: 'power2.out',
+      });
+    });
+
+    // Refresh after fonts finish loading to correct trigger positions
+    document.fonts.ready.then(() => ScrollTrigger.refresh());
+  }
+</script>
 
 </BaseLayout>

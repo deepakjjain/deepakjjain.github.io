@@ -6,7 +6,7 @@ const stats = [
 ];
 ---
 
-<section id="about" class="py-24 px-4 bg-base-200">
+<section id="about" data-anim-section class="py-24 px-4 bg-base-200">
   <div class="max-w-4xl mx-auto">
 
     <h2 class="text-3xl sm:text-4xl font-bold mb-14 text-center">
@@ -27,7 +27,7 @@ const stats = [
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-3 gap-4 sm:gap-6 mb-12 max-w-xl mx-auto">
+    <div data-anim-group class="grid grid-cols-3 gap-4 sm:gap-6 mb-12 max-w-xl mx-auto">
       {stats.map(({ value, label }) => (
         <div class="bg-base-100 rounded-2xl p-6 text-center shadow-sm">
           <div class="text-3xl sm:text-4xl font-bold text-primary">{value}</div>

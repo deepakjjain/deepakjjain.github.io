@@ -60,7 +60,7 @@ const languageColors: Record<string, string> = {
 };
 ---
 
-<section id="github" class="py-24 px-4 bg-base-200">
+<section id="github" data-anim-section class="py-24 px-4 bg-base-200">
   <div class="max-w-5xl mx-auto">
 
     <h2 class="text-3xl sm:text-4xl font-bold mb-4 text-center">
@@ -91,7 +91,7 @@ const languageColors: Record<string, string> = {
     ) : (
       <>
         <!-- Stats row -->
-        <div class="grid grid-cols-3 gap-4 max-w-sm mx-auto mb-14">
+        <div data-anim-group class="grid grid-cols-3 gap-4 max-w-sm mx-auto mb-14">
           <div class="bg-base-100 rounded-2xl p-5 text-center">
             <div class="text-3xl font-bold text-primary">{user.public_repos}</div>
             <div class="text-xs text-base-content/50 mt-1">Repos</div>
@@ -108,7 +108,7 @@ const languageColors: Record<string, string> = {
 
         <!-- Top repos grid -->
         {repos.length > 0 && (
-          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div data-anim-group class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {repos.map((repo) => (
               <a
                 href={repo.html_url}

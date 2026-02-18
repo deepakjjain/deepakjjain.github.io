@@ -43,14 +43,14 @@ const skillGroups = [
 ];
 ---
 
-<section id="skills" class="py-24 px-4">
+<section id="skills" data-anim-section class="py-24 px-4">
   <div class="max-w-5xl mx-auto">
 
     <h2 class="text-3xl sm:text-4xl font-bold mb-16 text-center">
       Skills <span class="text-primary">Matrix</span>
     </h2>
 
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    <div data-anim-group class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
       {skillGroups.map(({ label, icon, skills }) => (
         <div class="bg-base-200 rounded-2xl p-6">
           <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
