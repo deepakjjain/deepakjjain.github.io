@@ -34,14 +34,11 @@ const {
       Skip to content
     </a>
     <slot />
-    <!-- Plausible Analytics (privacy-first, no cookies, GDPR compliant)
-         Sign up at https://plausible.io and add deepakjjain.github.io
-         to activate. Script is harmless until the domain is registered. -->
-    <script
-      is:inline
-      defer
-      data-domain="deepakjjain.github.io"
-      src="https://plausible.io/js/script.js"
-    ></script>
+    <!-- Privacy-friendly analytics by Plausible -->
+    <script is:inline async src="https://plausible.io/js/pa-_wOxxPpaLXFr_zjatXB1f.js"></script>
+    <script is:inline>
+      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+      plausible.init()
+    </script>
   </body>
 </html>
