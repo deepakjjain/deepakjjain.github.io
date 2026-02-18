@@ -1,0 +1,43 @@
+---
+title: "E-Commerce Platform"
+description: "Full-stack shopping platform with real-time inventory management, Stripe payments, and an admin dashboard — rebuilt from a legacy monolith."
+stack: ["React", "TypeScript", "Node.js", "PostgreSQL", "Redis", "Stripe", "Docker"]
+role: "Full-Stack Developer"
+live: "https://shop.example.com"
+github: "https://github.com/deepakjjain/ecommerce-platform"
+featured: true
+order: 1
+---
+
+## Challenge & Context
+
+An existing e-commerce site running on a 6-year-old PHP monolith was producing 8-second average page loads and timing out under modest traffic spikes (≥ 50 concurrent users). The cart and inventory systems were tightly coupled, making even small changes risky to deploy.
+
+The business needed a platform that could handle Black Friday traffic and support independent iteration on frontend and backend.
+
+## Architecture Decisions
+
+**Decoupled frontend/backend** — React SPA served from a CDN, Node.js REST API on separate infrastructure. This allowed independent deployments and scaling.
+
+**Redis caching layer** — Product catalogue and session data cached with a 5-minute TTL. Eliminated 80% of database reads for browse/search paths.
+
+**PostgreSQL with connection pooling (pg-pool)** — Row-level locks for inventory deduction to prevent overselling during concurrent checkout races.
+
+**Stripe Checkout sessions** — Offloaded PCI compliance to Stripe. Webhook handler verifies signatures before updating order state.
+
+**Docker Compose for local dev** — All services (API, PostgreSQL, Redis) run with a single `docker compose up`. Eliminated "works on my machine" issues across the team.
+
+## What I Built
+
+- React storefront: product listing, search with debounce, cart (persisted in localStorage + synced to server), multi-step checkout flow
+- Node.js REST API: product, cart, order, and user endpoints with JWT auth
+- Stripe integration: payment intent creation, webhook handler for fulfillment
+- Admin dashboard: live inventory editor, order management, revenue charts (Recharts)
+- GitHub Actions CI: lint → test → Docker build → deploy to VPS on push to `main`
+
+## Result
+
+- **Page load time**: 8.2s → 2.4s (−70%) — LCP measured with WebPageTest
+- **Concurrent users**: handles 500+ without degradation (load tested with k6)
+- **Checkout conversion**: improved 18% after redesigning the 5-step flow to 2 steps
+- **Deployment frequency**: from weekly manual deploys to multiple per day via CI/CD

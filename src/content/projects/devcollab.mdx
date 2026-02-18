@@ -1,0 +1,42 @@
+---
+title: "DevCollab"
+description: "Real-time collaborative workspace for distributed engineering teams — shared Markdown docs, live presence indicators, and threaded code review."
+stack: ["Next.js", "TypeScript", "WebSockets", "MongoDB", "Express", "Docker", "Tailwind CSS"]
+role: "Full-Stack Developer"
+github: "https://github.com/deepakjjain/devcollab"
+featured: true
+order: 2
+---
+
+## Challenge & Context
+
+Remote teams at a 30-person startup were losing context switching between Slack, Notion, and GitHub for code discussions. Feedback on pull requests lived in GitHub comments but the broader design rationale was scattered across Slack threads.
+
+The goal: a single place for async + live technical discussion, scoped to projects and linked to code.
+
+## Architecture Decisions
+
+**WebSocket rooms per document** — Each shared document gets its own Socket.io room. Clients join on open and leave on close. Server broadcasts delta operations only to room members, keeping bandwidth minimal.
+
+**Operational Transformation (OT) for conflict resolution** — Rather than last-write-wins, applied OT to merge concurrent edits without losing either author's changes. Used the `ot-json0` library as the base.
+
+**MongoDB for documents** — Document-oriented storage maps naturally to nested block structures (paragraphs, code blocks, headings). Versioned snapshots stored every 50 operations for rollback support.
+
+**Optimistic UI updates** — Changes applied immediately in the client, then confirmed (or rolled back) by server acknowledgement. Keeps the editor feeling instantaneous even on high-latency connections.
+
+**Next.js App Router** — Separate server components for the document sidebar (cached, rarely changes) and client components for the live editor. Reduced initial JS bundle by ~35%.
+
+## What I Built
+
+- Real-time collaborative Markdown editor with live cursors and user presence indicators
+- Block-based document structure supporting code blocks, tables, callouts, and embeds
+- Threaded comment system anchored to specific document ranges (similar to Google Docs)
+- Project workspace with member roles (owner, editor, viewer) and invite links
+- Full-text search across all workspace documents using MongoDB Atlas Search
+
+## Result
+
+- **Latency**: sub-100ms round-trip for collaborative edits on same continent (measured with WebSocket ping/pong logs)
+- **Conflict rate**: zero data loss incidents across 3 months of beta with 200+ active users
+- **Adoption**: replaced Notion for internal technical docs at the target team within 6 weeks
+- **Bundle size**: 142 kB first-load JS (gzip) — achieved through Next.js App Router code splitting
