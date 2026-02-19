@@ -1,0 +1,69 @@
+---
+title: "What Three Years of Managing Monitors as Code Actually Taught Me"
+description: "Lessons from building and running an Observability-as-Code platform that grew from 0 to 400 synthetic monitors — the decisions that worked, the ones that didn't, and the abstraction that changed everything."
+publishDate: "2026-01-20"
+tags: ["devops", "terraform", "observability", "infrastructure-as-code", "platform-engineering"]
+relatedProject: "observability-as-code"
+---
+
+When we started the Observability-as-Code project, the pitch was simple: stop clicking through the New Relic UI to manage monitors and use Terraform instead. What actually happened over three years was more interesting than that — it became a lesson in what makes infrastructure tooling actually get adopted, and what kills it.
+
+## The Abstraction That Unlocked Adoption
+
+The original plan was Terraform all the way down. Engineers would write HCL to define monitors. Version-controlled, peer-reviewed, deterministic. Correct.
+
+Nobody used it.
+
+Not because Terraform is hard, but because the people who knew the most about what needed to be monitored — product engineers, QA leads — had no interest in learning HCL. They knew the URLs, the workflows, the failure scenarios. We were asking them to learn an infrastructure tool to do it.
+
+The switch to CSV as the configuration interface changed this immediately. One row per monitor. URL, type, frequency, tags, credentials reference. That's it. The Terraform modules are an implementation detail they never see.
+
+Within weeks, QA engineers and product managers were submitting PRs to add monitoring coverage for new features they were building. That had never happened before. The lesson: **the right abstraction lowers the contribution threshold more than any amount of documentation**.
+
+## Validate Early, Fail Fast
+
+The original pipeline ran CSV → Terraform plan → error. When something was wrong in the CSV, you'd get a Terraform error a few minutes later. Terraform errors for missing fields or invalid values are not friendly to someone who's never used Terraform.
+
+Adding a CSV validation step at the very start of the pipeline — before Terraform is even invoked — changed the feedback loop completely. Field missing? You get a readable error in seconds, not a Terraform stack trace three minutes later.
+
+The rule this reinforced: **push validation as early as possible, make errors as specific as possible**. "Field `frequency` must be one of: 1, 5, 10, 15, 30, 60" is a message a non-engineer can act on.
+
+## Local Emulation is Not Optional for Scripted Monitors
+
+Scripted browser and API monitors are JavaScript that runs inside New Relic's runtime. The feedback loop without local emulation was: write script → commit → push → wait for pipeline → monitor runs → check New Relic for result → repeat. Minutes per iteration.
+
+New Relic's synthetic runtime is containerised. Running the same Docker image locally collapsed that loop to seconds. Attach a debugger, run the script, fix the error, move on.
+
+The mistake was treating this as a nice-to-have. We introduced it after months of painful debugging cycles. **Building local dev tooling early pays for itself many times over**. The cost is a few days of setup; the benefit is every engineer who ever touches a scripted monitor afterwards.
+
+## Start With Remote State
+
+We did not do this. Early in the project, Terraform state lived locally. This meant only one person could safely run `terraform plan` or `terraform apply` at a time. When two engineers worked simultaneously, state conflicts happened. Recovery was manual and slow.
+
+Migrating to remote state with locking was straightforward, but it cost time and created risk during the migration. It should have been the starting point.
+
+For any IaC project with more than one contributor: **remote state with locking is not a premature optimisation, it's a prerequisite**.
+
+## Rate Limits Surface at Scale
+
+Past 200 monitors, Terraform applies started hitting New Relic API rate limits intermittently. The `--parallelism` flag controls how many concurrent API calls Terraform makes during an apply. The default (10) is fine for small deployments; it isn't fine when you're creating or updating dozens of resources at once.
+
+Tuning parallelism and shifting large batch deployments to off-peak hours solved it, but neither was obvious until we'd already had a few failed applies. **Test at scale before you need to** — a 300-monitor apply behaves very differently from a 50-monitor one.
+
+## The Audit Trail Becomes the Product
+
+Semantic versioning with automated changelogs started as an engineering hygiene decision. It turned out to be the feature that built organisational trust in the platform.
+
+Stakeholders — including compliance and security teams — could inspect the complete history of what was monitored, what changed, and why (via the linked Jira ticket in every commit). This wasn't something we designed for. It emerged from standard version control practices applied consistently.
+
+**Treat the audit trail as a first-class deliverable**, not a side effect. The changelog is a communication tool. The version history is evidence of control for auditors. The PR review record is proof that changes were peer-reviewed.
+
+## 300+ Releases, Zero Deployment-Caused Outages
+
+This metric is less impressive than it sounds — the pipeline deploying monitors doesn't affect production systems, so the blast radius of a failed deploy is limited. But it says something about what consistent automated deployment does to confidence. After a few dozen releases without incident, the team stopped thinking of deployments as events and started thinking of them as background process. That's the goal.
+
+The compounding effect of reliable automation: **people contribute more when they trust the deployment won't be their problem**.
+
+---
+
+The core insight after three years: the engineering work is the easy part. Terraform modules, GitHub Actions pipelines, rate limit tuning — solvable problems with clear solutions. The hard part is building something people actually use. That comes from the right abstraction (CSV, not HCL), fast feedback loops (validate early, emulate locally), and enough reliability that contributing to it doesn't feel risky.
