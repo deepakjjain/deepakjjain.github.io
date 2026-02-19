@@ -1,0 +1,109 @@
+---
+title: "Measuring the CI Costs GitHub Doesn't Track"
+description: "GitHub's billing API tells you nothing about self-hosted runner usage — it's your compute, so GitHub doesn't see it. Here's how we built visibility from scratch using the Jobs API."
+publishDate: "2026-02-05"
+tags: ["github-actions", "devops", "platform-engineering", "python", "cost-optimisation"]
+relatedProject: "self-hosted-runners"
+---
+
+When we moved from GitHub-hosted to self-hosted runners, the first thing we lost was billing visibility. GitHub's organisation billing API (`/orgs/{org}/settings/billing/actions`) reports minutes consumed by managed runners only. Self-hosted runner time is your EC2 compute — GitHub has no visibility into it, so it doesn't appear anywhere in the UI or API.
+
+We had reduced cost, but we couldn't prove it. We couldn't tell which repositories or workflows were the heaviest users, or whether the fleet was appropriately sized. This is how we built the measurement pipeline from scratch.
+
+## The Data GitHub Does Expose
+
+GitHub doesn't track self-hosted runner minutes, but it does track job execution. Every job has a start timestamp and a completion timestamp available via the [Jobs API](https://docs.github.com/en/rest/actions/workflow-jobs). That's enough.
+
+The approach:
+
+1. Discover which workflows use self-hosted runners
+2. Fetch all workflow runs within the billing cycle
+3. Sum job durations from start/end timestamps
+4. Aggregate by workflow and repository
+
+None of these steps require any special permissions beyond a standard organisation-scoped token.
+
+## Finding Self-Hosted Workflows
+
+The first challenge: discovering which of the organisation's hundreds of workflows actually declare `runs-on: [self-hosted, ...]`. Iterating every repository and fetching every workflow file would be slow and expensive in API calls.
+
+The GitHub code search API solves this cleanly:
+
+```python
+query = 'org:your-org "runs-on: [self-hosted" language:yaml'
+results = github.search_code(query)
+```
+
+This returns every workflow file in the organisation that contains the self-hosted runs-on declaration, without fetching anything else. From the search results you get the repository name and workflow file path — enough to resolve to a workflow ID and start fetching run data.
+
+## Computing Duration Without a Billing Endpoint
+
+For each discovered workflow, fetch runs within the current billing cycle and pull job-level timing:
+
+```python
+for run in workflow.get_runs(created=f">={cycle_start}"):
+    for job in run.jobs():
+        if job.started_at and job.completed_at:
+            duration_seconds = (job.completed_at - job.started_at).total_seconds()
+            # Round up to nearest minute — matches GitHub's billing logic
+            duration_minutes = math.ceil(duration_seconds / 60)
+```
+
+`math.ceil` matters here. GitHub rounds every job up to the nearest minute for billing purposes on managed runners — we apply the same logic to self-hosted durations so the numbers are comparable and the rounding behaviour is explicit rather than implicit.
+
+## Billing Cycle Boundary Logic
+
+GitHub's billing cycle resets on the 25th of each month, not the calendar month boundary. Reporting against a calendar month would overcount or undercount depending on when you run the report.
+
+```python
+today = date.today()
+if today.day >= 25:
+    cycle_start = today.replace(day=25)
+else:
+    # Previous month's 25th
+    first_of_month = today.replace(day=1)
+    cycle_start = (first_of_month - timedelta(days=1)).replace(day=25)
+```
+
+This is the kind of logic that seems obvious once written but isn't obvious at all when you first encounter a report that's off by a week because it ran on the 26th.
+
+## What Managed Runner Reporting Adds
+
+For GitHub-hosted runner spend, the billing API does return data — but it doesn't apply the OS multipliers that determine actual cost:
+
+```python
+MULTIPLIERS = {"UBUNTU": 1, "WINDOWS": 2, "MACOS": 10}
+
+for repo in org.get_repos():
+    billing = org.get_billing_actions()  # returns raw minutes by OS
+    normalised = sum(
+        minutes * MULTIPLIERS[os]
+        for os, minutes in billing.items()
+    )
+```
+
+Normalising to equivalent Ubuntu minutes lets you compare managed and self-hosted usage on the same scale and see where the multiplier cost is actually coming from. In our case, a handful of Windows workflows were responsible for a disproportionate share of the bill — exactly the kind of thing that's invisible without this normalisation.
+
+## Staying Below Rate Limits
+
+Iterating every repository, fetching workflow IDs, and paginating through run histories is API-intensive. A few things that kept us within rate limits without adding sleeps everywhere:
+
+**Cache the workflow discovery.** The code search results change slowly — a new workflow file gets added occasionally, not constantly. Caching the discovered workflow list across a reporting run avoids re-searching on every iteration.
+
+**Filter runs server-side.** The `created` parameter on the runs API filters by date server-side, so you're not fetching thousands of runs just to discard everything outside the billing window client-side.
+
+**Conditional requests.** For repositories that haven't had any runs recently, `If-None-Match` with the previous response's ETag returns a 304 and doesn't count against the rate limit quota.
+
+## The Output
+
+Reports publish to `docs/reports/github-utilization/YYYY-MM/` — one folder per billing cycle. Each folder contains:
+
+- Per-workflow CSV with repository, workflow name, total minutes, run count
+- Per-repository CSV with totals across all workflows
+- Horizontal bar charts of the top 20 workflows and top 20 repositories by usage
+
+The month-over-month folder structure means the data accumulates without any database infrastructure. Trend analysis is a `pandas.read_csv` across the dated folders.
+
+---
+
+The core lesson: when a platform doesn't expose the measurement you need, the raw data to build it yourself is usually there — it's just not pre-aggregated. GitHub exposes job timestamps. From job timestamps you can derive everything you'd want from a billing endpoint that doesn't exist.

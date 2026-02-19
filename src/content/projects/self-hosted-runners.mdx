@@ -1,0 +1,47 @@
+---
+title: "Self-Hosted GitHub Actions Runner Fleet"
+description: "AWS-hosted CI runner fleet with Lambda-driven auto-scaling, four purpose-built runner profiles, and automated billing visibility tooling — replacing GitHub-managed runners across a multi-repository organisation."
+stack: ["Terraform", "AWS Lambda", "EC2", "EventBridge", "GitHub Actions", "Python", "Docker", "CloudWatch"]
+role: "Platform Engineer"
+featured: true
+order: 5
+---
+
+## Challenge & Context
+
+A large multi-repository GitHub organisation was running CI/CD entirely on GitHub-hosted runners. As the estate grew, three problems compounded:
+
+**Cost.** GitHub-hosted runners bill per-minute with OS multipliers (Windows 2×, macOS 10×). At scale, this became a significant and growing line item with no visibility into which repositories or workflows were driving it.
+
+**Control.** Managed runners are ephemeral, shared, and opaque. Teams couldn't pre-install tooling, control hardware specs, or guarantee network locality for jobs accessing internal AWS resources.
+
+**Security.** CI jobs deploying Terraform or pushing container images required long-lived AWS credentials injected as GitHub Secrets. Self-hosted runners inside the organisation's VPC could assume IAM roles directly, eliminating static credential exposure.
+
+## Architecture Decisions
+
+**Lambda-based auto-scaling via EventBridge.** Rather than maintaining a standing pool of EC2 instances, `workflow_job` webhook events from GitHub are routed through EventBridge to a Lambda function that provisions runners on-demand. A separate scale-down Lambda runs on a cron schedule to reclaim idle capacity. This means zero idle EC2 cost — runners exist only while jobs need them.
+
+**Four purpose-built runner profiles.** A single Terraform module (philips-labs/terraform-aws-github-runner) is parameterised into four distinct profiles: Ubuntu 22.04 (persistent, 200GB gp3, CloudWatch log streaming), Linux x64 (ephemeral, 15-min scale-down), ARM64 (Graviton, unlimited CPU credits), and Windows 2022 (20-min boot allowance, 5s webhook delay). Each profile has its own label set, instance type preferences, and scale-down cadence.
+
+**Dual instance types per profile.** Every runner profile specifies two instance types (e.g. `m5ad.large` + `m5a.large`) with on-demand failover for `InsufficientInstanceCapacity` errors. AWS capacity constraints on a single instance type never block a job queue.
+
+**GitHub App over PAT.** The webhook integration uses a GitHub App rather than a Personal Access Token — scoped permissions, rotating keys, and tied to the organisation rather than an individual user account.
+
+**Multi-region without over-engineering.** The Terraform module is structured with `eu-west-1` provider aliases commented out in `provider.tf`. Activating EU-West-1 is a two-line uncomment and a `terraform apply` — no module restructuring.
+
+## What I Built
+
+- Terraform infrastructure for the full runner fleet (VPC-deployed, naming convention `{account}{devops}{region}` for cross-account visibility)
+- X-Ray tracing and CloudWatch log streaming across all Lambda provisioning functions
+- Dockerised Python billing tool that discovers self-hosted runner usage via GitHub's code search + Jobs API (since GitHub's billing API only covers managed runners) — outputs per-workflow and per-repository CSVs with matplotlib bar charts
+- Separate managed Actions billing reporter applying OS multipliers and alerting when included minutes fall below a configurable threshold
+- `ghr-offline-removal.yml` workflow running 4× daily to remove stale offline runners by naming pattern
+- `gh-self-hosted-starter.yml` daily fleet health check running before the working day in UK and US time zones
+
+## Result
+
+- **Cost:** EC2 on-demand rates only when jobs are active — zero idle cost; largest saving on workloads that previously used Windows/macOS managed runners (2×/10× multipliers eliminated)
+- **Security:** Long-lived `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` GitHub Secrets removed — runners assume IAM roles via instance profile
+- **Visibility:** First-ever month-over-month CI spend breakdown by repository and workflow, enabling targeted optimisation backlog within the first reporting cycle
+- **ARM64 workloads:** Native Graviton builds replaced QEMU emulation — Docker build jobs that were prohibitively slow became practical
+- **Reliability:** Automated offline runner cleanup and daily fleet health validation — issues surfaced before developers encounter them
