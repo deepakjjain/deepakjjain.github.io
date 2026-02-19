@@ -85,13 +85,19 @@
   ).matches;
 
   if (!prefersReducedMotion) {
-    gsap.from('#hero-content > *', {
-      opacity: 0,
-      y: 28,
-      duration: 0.75,
-      stagger: 0.12,
-      ease: 'power2.out',
-      delay: 0.1,
+    // Animate h1 with y-only (no opacity) so it's visible immediately for LCP
+    // Animate all other children with the full opacity+y entrance
+    const children = Array.from(
+      document.querySelectorAll<HTMLElement>('#hero-content > *')
+    );
+    children.forEach((el, i) => {
+      gsap.from(el, {
+        opacity: el.tagName === 'H1' ? 1 : 0,
+        y: 28,
+        duration: 0.75,
+        ease: 'power2.out',
+        delay: 0.1 + i * 0.12,
+      });
     });
   }
 </script>
