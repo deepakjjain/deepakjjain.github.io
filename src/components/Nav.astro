@@ -1,9 +1,10 @@
 ---
 const navLinks = [
-  { href: '#about', label: 'About' },
-  { href: '#skills', label: 'Skills' },
-  { href: '#projects', label: 'Projects' },
-  { href: '#contact', label: 'Contact' },
+  { href: '/#about', label: 'About' },
+  { href: '/#skills', label: 'Skills' },
+  { href: '/#projects', label: 'Projects' },
+  { href: '/blog', label: 'Blog' },
+  { href: '/#contact', label: 'Contact' },
 ];
 ---
 
@@ -12,7 +13,7 @@ const navLinks = [
 
     <!-- Logo -->
     <div class="navbar-start">
-      <a href="#" class="btn btn-ghost text-lg font-bold tracking-tight">
+      <a href="/" class="btn btn-ghost text-lg font-bold tracking-tight">
         Deepak Jain
       </a>
     </div>
@@ -28,18 +29,49 @@ const navLinks = [
           </li>
         ))}
       </ul>
+
+      <!-- Theme toggle -->
+      <button
+        id="theme-toggle"
+        aria-label="Toggle light/dark theme"
+        class="btn btn-ghost btn-square ml-1"
+      >
+        <!-- Sun — shown in dark mode -->
+        <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <!-- Moon — shown in light mode -->
+        <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+
       <a
         href="/resume.pdf"
         target="_blank"
         rel="noopener noreferrer"
-        class="btn btn-primary btn-sm ml-2"
+        class="btn btn-primary btn-sm ml-1"
       >
         Resume
       </a>
     </div>
 
     <!-- Mobile hamburger -->
-    <div class="navbar-end lg:hidden">
+    <div class="navbar-end lg:hidden gap-1">
+      <!-- Theme toggle (mobile) -->
+      <button
+        id="theme-toggle-mobile"
+        aria-label="Toggle light/dark theme"
+        class="btn btn-ghost btn-square btn-sm"
+      >
+        <svg id="icon-sun-mobile" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <svg id="icon-moon-mobile" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+
       <div class="dropdown dropdown-end">
         <button
           tabindex="0"
@@ -48,36 +80,16 @@ const navLinks = [
           aria-expanded="false"
           aria-haspopup="true"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 6h16M4 12h16M4 18h16"
-            />
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <ul
-          tabindex="0"
-          class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-base-200 rounded-box w-48"
-        >
+        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-base-200 rounded-box w-48">
           {navLinks.map(({ href, label }) => (
             <li><a href={href} class="font-medium">{label}</a></li>
           ))}
           <li class="mt-1">
-            <a
-              href="/resume.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-primary font-medium"
-            >
+            <a href="/resume.pdf" target="_blank" rel="noopener noreferrer" class="text-primary font-medium">
               Resume ↗
             </a>
           </li>
@@ -87,3 +99,42 @@ const navLinks = [
 
   </nav>
 </header>
+
+<script>
+  function initThemeToggle() {
+    const html = document.documentElement;
+
+    function getTheme() {
+      return html.getAttribute('data-theme') ?? 'dark';
+    }
+
+    function setTheme(theme: string) {
+      html.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      updateIcons(theme);
+    }
+
+    function updateIcons(theme: string) {
+      const isDark = theme === 'dark';
+      document.getElementById('icon-sun')?.classList.toggle('hidden', !isDark);
+      document.getElementById('icon-moon')?.classList.toggle('hidden', isDark);
+      document.getElementById('icon-sun-mobile')?.classList.toggle('hidden', !isDark);
+      document.getElementById('icon-moon-mobile')?.classList.toggle('hidden', isDark);
+    }
+
+    // Init icons on load
+    updateIcons(getTheme());
+
+    // Desktop toggle
+    document.getElementById('theme-toggle')?.addEventListener('click', () => {
+      setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+    });
+
+    // Mobile toggle
+    document.getElementById('theme-toggle-mobile')?.addEventListener('click', () => {
+      setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+    });
+  }
+
+  initThemeToggle();
+</script>

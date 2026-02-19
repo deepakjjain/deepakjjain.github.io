@@ -1,0 +1,60 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+}
+
+const { post } = Astro.props;
+const { title, description, publishDate, tags, relatedProject } = post.data;
+const slug = post.id.replace(/\.[^.]+$/, '');
+
+const dateStr = publishDate.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+});
+---
+
+<article class="card bg-base-200 border border-base-300 hover:border-primary/40 transition-colors group">
+  <div class="card-body gap-3">
+
+    <!-- Meta row -->
+    <div class="flex items-center gap-3 text-xs text-base-content/45">
+      <time datetime={publishDate.toISOString()}>{dateStr}</time>
+      {relatedProject && (
+        <span class="badge badge-primary badge-outline badge-xs py-2">
+          Project ↗
+        </span>
+      )}
+    </div>
+
+    <!-- Title -->
+    <h2 class="card-title text-base font-semibold leading-snug group-hover:text-primary transition-colors">
+      <a href={`/blog/${slug}`} class="after:absolute after:inset-0">
+        {title}
+      </a>
+    </h2>
+
+    <!-- Description -->
+    <p class="text-sm text-base-content/60 leading-relaxed line-clamp-2">
+      {description}
+    </p>
+
+    <!-- Tags -->
+    {tags.length > 0 && (
+      <div class="flex flex-wrap gap-1 mt-1">
+        {tags.map((tag) => (
+          <span class="badge badge-ghost badge-xs py-2 text-xs">{tag}</span>
+        ))}
+      </div>
+    )}
+
+  </div>
+</article>
+
+<style>
+  article {
+    position: relative;
+  }
+</style>

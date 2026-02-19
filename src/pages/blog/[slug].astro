@@ -1,0 +1,121 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Nav from '../../components/Nav.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((entry) => ({
+    params: { slug: entry.id.replace(/\.[^.]+$/, '') },
+    props: { entry },
+  }));
+}
+
+interface Props {
+  entry: CollectionEntry<'blog'>;
+}
+
+const { entry } = Astro.props;
+const { title, description, publishDate, tags, relatedProject } = entry.data;
+const { Content } = await render(entry);
+
+// Fetch related project if linked
+let project: CollectionEntry<'projects'> | undefined;
+if (relatedProject) {
+  const projects = await getCollection('projects');
+  project = projects.find((p) => p.id.replace(/\.[^.]+$/, '') === relatedProject);
+}
+
+const dateStr = publishDate.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<BaseLayout title={`${title} | Deepak Jain`} description={description}>
+  <Nav />
+
+  <main id="main" class="max-w-3xl mx-auto px-4 py-16">
+
+    <!-- Back link -->
+    <a
+      href="/blog"
+      class="inline-flex items-center gap-2 text-sm text-base-content/55 hover:text-primary transition-colors mb-10"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      All posts
+    </a>
+
+    <!-- Header -->
+    <header class="mb-10">
+      <div class="flex items-center gap-3 text-xs text-base-content/45 mb-4">
+        <time datetime={publishDate.toISOString()}>{dateStr}</time>
+        {tags.length > 0 && (
+          <span aria-hidden="true">·</span>
+        )}
+        {tags.map((tag) => (
+          <span class="badge badge-ghost badge-xs py-2">{tag}</span>
+        ))}
+      </div>
+
+      <h1 class="text-4xl sm:text-5xl font-bold mb-4 tracking-tight leading-tight">
+        {title}
+      </h1>
+      <p class="text-lg text-base-content/65 leading-relaxed">
+        {description}
+      </p>
+
+      <!-- Related project callout -->
+      {project && (
+        <a
+          href={`/projects/${project.id.replace(/\.[^.]+$/, '')}`}
+          class="inline-flex items-center gap-2 mt-6 px-4 py-3 rounded-lg bg-base-200 border border-base-300 hover:border-primary/40 transition-colors text-sm group"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+          <span class="text-base-content/60 group-hover:text-base-content transition-colors">
+            Related project: <span class="font-medium text-base-content">{project.data.title}</span>
+          </span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-base-content/40 ml-auto shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      )}
+    </header>
+
+    <div class="divider"></div>
+
+    <!-- MDX content -->
+    <article class="prose dark:prose-invert max-w-none mt-10
+      prose-h2:text-2xl prose-h2:font-bold prose-h2:mt-10 prose-h2:mb-4
+      prose-p:leading-relaxed
+      prose-code:text-primary prose-code:bg-base-200 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
+      prose-pre:bg-base-200 prose-pre:border prose-pre:border-base-300
+    ">
+      <Content />
+    </article>
+
+    <!-- Footer nav -->
+    <div class="mt-16 pt-8 border-t border-base-300 flex flex-wrap items-center justify-between gap-4">
+      <a
+        href="/blog"
+        class="inline-flex items-center gap-2 text-sm text-base-content/55 hover:text-primary transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        All posts
+      </a>
+    </div>
+
+  </main>
+
+  <footer class="py-8 px-4 bg-base-200 border-t border-base-300 text-center text-base-content/45 text-sm">
+    <p>© {new Date().getFullYear()} Deepak Jain · <a href="/" class="hover:text-primary transition-colors">← Home</a></p>
+  </footer>
+</BaseLayout>

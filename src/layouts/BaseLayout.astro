@@ -24,6 +24,13 @@ const {
     <link rel="icon" href="/favicon.ico" />
     <meta name="generator" content={Astro.generator} />
     <SEO title={title} description={description} image={image} />
+    <!-- Restore saved theme before first paint to avoid flash -->
+    <script is:inline>
+      (function () {
+        const t = localStorage.getItem('theme') ?? 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
   </head>
   <body class="min-h-screen bg-base-100 text-base-content font-sans antialiased">
     <!-- Skip to content (WCAG 2.2) -->

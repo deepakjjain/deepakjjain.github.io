@@ -1,0 +1,63 @@
+---
+title: "How Operational Transformation Actually Works (and When to Use It)"
+description: "A practical breakdown of OT for collaborative editing — the algorithm, the tradeoffs, and why we chose it over CRDTs for DevCollab."
+publishDate: "2025-10-05"
+tags: ["websockets", "algorithms", "real-time", "architecture"]
+relatedProject: "devcollab"
+---
+
+When building real-time collaborative editing, you eventually hit the question: _how do we merge two people's edits if they happen at the same time?_
+
+There are two mainstream answers: **Operational Transformation (OT)** and **CRDTs**. We went with OT. Here's why — and how it actually works.
+
+## The Problem
+
+Imagine Alice and Bob both open the same document containing `"Hello"`.
+
+- Alice inserts `" World"` at position 5 → `"Hello World"`
+- Bob deletes the `"H"` at position 0 → `"ello"`
+
+If both operations reach the server in the order `[Alice, Bob]`, the server applies Alice's op first to get `"Hello World"`, then tries to delete position 0 to get `"ello World"`. Fine.
+
+But if they arrive `[Bob, Alice]`, the server applies Bob's op first to get `"ello"`, then tries to insert `" World"` at position 5. `"ello"` only has 4 characters. **Crash.**
+
+OT solves this by _transforming_ one operation against another so the intent is preserved regardless of order.
+
+## The Transform Function
+
+For text operations, every change is either an `insert(pos, text)` or `delete(pos, length)`. The transform function adjusts positions:
+
+```
+transform(insert(5, " World"), delete(0, 1))
+  → insert(4, " World")  // position shifts left by 1 because a char was deleted before it
+```
+
+The key property: `apply(apply(doc, A), transform(B, A)) === apply(apply(doc, B), transform(A, B))`
+
+Both orderings produce the same final document. This is called **convergence**.
+
+## Why Not CRDTs?
+
+CRDTs (Conflict-free Replicated Data Types) are theoretically cleaner — no server coordination needed, peer-to-peer friendly. For a document editor, you'd typically use something like a sequence CRDT (RGA or LSEQ).
+
+The tradeoff: CRDTs carry metadata with every character to establish ordering. For a collaborative document editor, this metadata overhead grows with the edit history. For our use case (engineering teams with documents that get edited heavily), the memory overhead was meaningful.
+
+OT with a central server is simpler to reason about and the server is the source of truth. Since DevCollab already had a server for auth, presence, and storage — OT was the pragmatic choice.
+
+## What `ot-json0` Gives You
+
+We used the `ot-json0` library rather than implementing transform functions from scratch. It handles:
+
+- Insert/delete/move operations on JSON tree structures (not just flat text)
+- Subtypes (plugging in a text OT for string values within a JSON document)
+- Composing multiple operations into one
+
+The tricky part we had to implement ourselves was the **revision acknowledgement protocol**: clients send ops tagged with the server revision they were based on. The server transforms the op against all ops that happened since that revision before applying it, then broadcasts the transformed op to other clients.
+
+## Lessons
+
+**Test convergence exhaustively.** We wrote a property-based test suite with thousands of randomly generated concurrent operation pairs to verify convergence. Found two bugs that would have been nearly impossible to reproduce in manual testing.
+
+**Presence is separate from content.** Cursor positions and user presence indicators don't go through the OT pipeline — they're ephemeral state broadcast separately over Socket.io. Mixing presence into the document model overcomplicates things.
+
+**Version vectors are worth the complexity.** Tracking per-client revision vectors (instead of a single global revision counter) makes reconnection after a disconnect much cheaper — the client only needs to catch up on ops it missed, not replay the full history.

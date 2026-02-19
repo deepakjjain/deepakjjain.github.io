@@ -1,0 +1,43 @@
+---
+title: "Lessons from Rebuilding a PHP Monolith into a Modern Stack"
+description: "What actually breaks when you migrate a 6-year-old e-commerce platform — the technical surprises, the unexpected wins, and what I'd do differently."
+publishDate: "2025-11-20"
+tags: ["architecture", "migration", "node.js", "react", "lessons-learned"]
+relatedProject: "ecommerce-platform"
+---
+
+Migrating a legacy codebase is never as clean as the architecture diagram makes it look. Here's what actually happened when we moved a 6-year-old PHP monolith to a decoupled React + Node.js platform.
+
+## The Thing Nobody Warns You About: Data Consistency
+
+The hardest part wasn't the technology switch — it was the data. Six years of organic growth had left the database schema full of implicit rules that lived only in PHP code and one engineer's head.
+
+We spent three weeks just mapping all the places where inventory was mutated. Turns out there were eleven different code paths that could decrement stock, and they all had slightly different logic around backorders and reservations.
+
+**What we did:** Before writing a single line of new code, we wrote a script that shadowed every mutation — running both old and new logic in parallel for two weeks, logging any divergence. It caught 14 edge cases we hadn't anticipated.
+
+## Why Redis Caching Actually Worked Here
+
+Everyone's first instinct with a slow e-commerce site is "add caching." Usually this is cargo-culted without thinking about _what_ to cache. We got lucky in that the access pattern was genuinely cache-friendly:
+
+- Product catalogue changes infrequently (sales team updates a few times per day)
+- 80%+ of traffic is browse/search, not checkout
+- Session data is small and user-specific
+
+A 5-minute TTL on catalogue data eliminated the majority of database load during browse paths. Checkout — where freshness is critical for inventory — bypassed cache entirely and hit the database with row-level locks.
+
+The key insight: **cache the read-heavy paths, never the write-critical ones.**
+
+## The Stripe Migration Was Easier Than Expected
+
+We'd braced for Stripe to be painful. It wasn't. The Checkout Sessions API meant we didn't have to handle card data at all — we just create a session, redirect the user, and process the webhook on return.
+
+The only tricky part was webhook idempotency. Our fulfillment handler needed to be safe to call twice (network retries happen). We solved it with a `processed_events` table: check if the event ID exists before doing anything, insert it atomically inside the same transaction as the order update.
+
+## What I'd Do Differently
+
+**Ship the CI/CD pipeline on day one.** We added GitHub Actions in week 3 and immediately wondered why we hadn't started there. The manual deploy process was slowing everyone down and causing late-night anxiety before each release.
+
+**Don't migrate the database schema at the same time as the application.** We tried to modernise the schema during the migration. This doubled the risk surface. Keep the schema stable, ship the new app talking to the old schema, then evolve the schema separately once the app is proven.
+
+**Write the load tests before you think you need them.** We discovered the pg-pool connection limit issue on the first staging load test, not in production. That was lucky — but only because we remembered to run k6 before launch.

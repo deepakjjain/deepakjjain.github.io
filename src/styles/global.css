@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
 @plugin "daisyui";
+@plugin "@tailwindcss/typography";
+
+/* Make dark: utilities respond to DaisyUI data-theme="dark" attribute */
+@variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;

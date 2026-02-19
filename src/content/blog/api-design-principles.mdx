@@ -1,0 +1,67 @@
+---
+title: "API Design Principles I Keep Coming Back To"
+description: "Not a comprehensive REST tutorial — just the handful of decisions that repeatedly make the difference between an API that's a joy to consume and one that causes 11pm Slack messages."
+publishDate: "2025-08-18"
+tags: ["api-design", "backend", "dx", "rest"]
+---
+
+After building and consuming a lot of APIs across different projects, a few principles have stuck around because they consistently pay off. These aren't revolutionary — they're the ones that get ignored under deadline pressure.
+
+## Make Errors More Useful Than Success
+
+When an API call succeeds, the response structure matters less — you got what you wanted. When it fails, the error response is everything.
+
+A bad error:
+```json
+{ "error": "Bad request" }
+```
+
+A good error:
+```json
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Request validation failed",
+    "details": [
+      { "field": "email", "message": "Must be a valid email address" },
+      { "field": "role", "message": "Must be one of: admin, editor, viewer" }
+    ],
+    "requestId": "req_abc123"
+  }
+}
+```
+
+The `requestId` is underrated. When a consumer files a bug report, a request ID lets you find the exact log entry in seconds instead of guessing from a timestamp.
+
+## Pagination Cursor, Not Page Number
+
+Page-number pagination (`?page=3&limit=20`) is intuitive but breaks when data is inserted or deleted between requests. If someone inserts a row while you're paginating, you get duplicate results on the next page.
+
+Cursor pagination (`?after=cursor_xyz&limit=20`) returns a stable "next page" token based on the position of the last item. No duplicates, no skipped rows. The tradeoff: you can't jump to "page 50" directly. For most real use cases — infinite scroll, streaming lists — this doesn't matter.
+
+## Version the API from Day One
+
+Even if you're the only consumer. Even if you think the API will never change.
+
+`/api/v1/users` costs you nothing upfront and saves you from the "we need to change the response shape but can't break the mobile app" conversation six months later.
+
+The approach that works well: the version is a path prefix, not a header. Path prefixes are visible in logs, browser devtools, and curl output. Header versioning is elegant in theory but painful to debug.
+
+## Separate "not found" from "not authorized"
+
+Returning `404` when a resource exists but the user doesn't have access leaks information. Returning `403` for everything makes it hard to distinguish permission errors from typos.
+
+The convention I use:
+- `404` — the resource doesn't exist for _anyone_
+- `403` — the resource exists but you're not allowed to see it
+- `401` — you're not authenticated at all
+
+This is semantically correct and gives consumers enough information to show the right UI state without revealing the existence of data they shouldn't know about.
+
+## Design for the Consumer's Mental Model, Not the Database Schema
+
+The most common anti-pattern I see: API responses that mirror the database schema exactly. Separate tables become separate endpoints, join tables leak into the response, internal IDs appear everywhere.
+
+The consumer doesn't know (or care) that `users` and `profiles` are separate tables. They want a single `GET /users/:id` that returns everything they need to render a user profile.
+
+Design the response around what the consumer needs to do, then figure out how to assemble it on the server.
