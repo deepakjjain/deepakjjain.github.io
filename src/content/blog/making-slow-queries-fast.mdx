@@ -1,0 +1,74 @@
+---
+title: "Going from 90-Second Queries to Sub-Second: What Actually Worked"
+description: "How we made a 50M-row reporting database feel instant — materialized views, cache strategy, and the decisions that didn't pan out the way we expected."
+publishDate: "2025-09-12"
+tags: ["postgresql", "performance", "backend", "database", "python"]
+relatedProject: "analytics-dashboard"
+---
+
+The problem was described to me as "reports are slow." What that actually meant: queries against a 50M-row events table were taking 45–90 seconds to return. Sales and ops teams had effectively stopped trusting the dashboards — by the time a report loaded, someone had already pulled the numbers from a spreadsheet instead.
+
+This is what we tried, what worked, and what didn't.
+
+## The Wrong First Instinct: Index Everything
+
+The first thing you want to do when queries are slow is add indexes. We added several. The improvement was real but modest — a 90-second query became a 40-second query. Still unusable.
+
+The issue was structural, not missing indexes. The common reporting queries were aggregations over large time ranges: total events by day, breakdown by user segment, cohort retention. These aren't queries that indexes save — they're queries where the database has to touch a lot of rows regardless.
+
+Indexes help with _selective_ queries (find me this specific user). They help much less with _aggregation_ queries (sum all events from this month, grouped by type).
+
+## What Actually Worked: Materialized Views
+
+The insight was that these reports didn't need to be computed from raw events on every request. The events table grows by append — past data doesn't change. The query for "events per day in March" will always return the same answer regardless of when you run it.
+
+Materialized views pre-compute the aggregations and store the result:
+
+```sql
+CREATE MATERIALIZED VIEW daily_event_counts AS
+SELECT
+  date_trunc('day', created_at) AS day,
+  event_type,
+  user_segment,
+  COUNT(*) AS event_count
+FROM events
+GROUP BY 1, 2, 3;
+
+CREATE INDEX ON daily_event_counts (day, event_type);
+```
+
+The same query that was hitting 50M rows now hits a view with a few thousand rows. Query time dropped from 45–90 seconds to under 200ms for the most common report types.
+
+The catch: materialized views are stale until refreshed. We ran `REFRESH MATERIALIZED VIEW CONCURRENTLY` on an hourly schedule via Celery Beat. `CONCURRENTLY` is important — it lets reads continue against the old data during the refresh, so there's no window where the view is locked.
+
+## Caching Layer on Top
+
+Even 200ms adds up when multiple users are hitting the dashboard simultaneously. We added Redis caching with a 10-minute TTL on query results, keyed by a hash of the user ID and query parameters.
+
+Two things that are easy to get wrong with per-user caching:
+
+**Cross-user data leakage.** If the cache key doesn't include the user ID, you can serve one user's data to another user. We included the user ID in every cache key regardless of whether the query was user-specific — better safe than a security incident.
+
+**Cache invalidation timing.** With an hourly view refresh and a 10-minute cache TTL, users could see data that's up to 70 minutes old. For this use case (business reporting, not real-time monitoring), that was acceptable. We surfaced the "data as of" timestamp in the UI so nobody was confused about freshness.
+
+## Async Exports for the Cases That Can't Be Fast
+
+Not all reports could be pre-aggregated. Custom date ranges and complex filter combinations couldn't be covered by a fixed set of materialized views without an explosion of view permutations.
+
+For these, the answer wasn't to make them faster — it was to make waiting feel better. Heavy exports now run as Celery tasks. The user kicks off an export and immediately gets a "processing" state. When the task completes (seconds to a few minutes depending on complexity), the result is available for download.
+
+This removed the timeout problem entirely and, somewhat surprisingly, generated fewer complaints than the old 90-second wait. A spinner with clear progress feels better than staring at a loading indicator with no indication of whether the request is even alive.
+
+## What Didn't Work: Query Result Caching Without the View Layer
+
+Before adding materialized views, we tried caching the slow query results directly in Redis with a longer TTL (1 hour). The first request of the day was still slow — the cache had expired and someone had to eat the 60-second query to warm it.
+
+This is "cache as bandage" — you're hiding the slow query rather than fixing it. The right order is: fix the query, then add caching on top of the fast query to handle load. Caching a slow query doesn't make it fast; it just makes it slow less often.
+
+## The Unglamorous Part: Schema Cleanup
+
+The biggest wins weren't from clever architecture — they were from cleaning up the schema. The events table had a `metadata` column storing JSON blobs, and several reports were filtering on values inside those blobs. JSON filtering in PostgreSQL is possible but not fast.
+
+Extracting two frequently-filtered metadata fields into proper columns and indexing them eliminated several of the worst-performing queries without any application logic changes. Boring work, high impact.
+
+**Profile before you architect.** We spent time designing a caching strategy before we'd fully understood the query patterns. Some of the hardest problems turned out to be the easiest to fix once we actually looked.
