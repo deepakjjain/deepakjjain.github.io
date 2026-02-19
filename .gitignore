@@ -18,3 +18,10 @@ pnpm-debug.log*
 
 # Astro
 .astro/
+
+#Claude
+.claude/
+CLAUDE.node_modules
+
+#Docs
+docs/
