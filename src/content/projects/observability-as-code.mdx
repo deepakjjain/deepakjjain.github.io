@@ -1,0 +1,49 @@
+---
+title: "Observability-as-Code Platform"
+description: "Fully automated New Relic monitoring platform managing ~400 synthetic monitors across 6 monitor types — driven by declarative CSV config, Terraform modules, and a GitHub Actions CI/CD pipeline."
+stack: ["Terraform", "GitHub Actions", "New Relic", "Docker", "Kubernetes", "AWS EKS", "Python", "Shell"]
+role: "Platform Engineer"
+featured: true
+order: 4
+---
+
+## Challenge & Context
+
+New Relic synthetic monitors were managed manually through the UI. As the product portfolio grew, this became untenable:
+
+- **No audit trail.** Who changed what, when, and why was unknown.
+- **Configuration drift.** Monitors diverged from their intended state with no mechanism to detect or correct it.
+- **High toil.** Adding or modifying monitors required direct UI access and tribal knowledge — approximately 2 hours per new monitor.
+- **No testing.** Scripts couldn't be validated before deployment, leading to silent failures in production.
+
+The goal was to treat observability configuration with the same rigour as application code.
+
+## Architecture Decisions
+
+**CSV as the configuration interface.** Rather than requiring Terraform HCL, engineers define monitors in CSV — one row per monitor. Fields cover URL, type, frequency, alert thresholds, tags, and credentials. This abstraction allowed product engineers and QA leads with no Terraform experience to contribute monitoring coverage directly.
+
+**Six custom Terraform modules.** Each module translates CSV rows into New Relic resources for a specific monitor type: Ping, Web (simple browser), Scripted Browser, Scripted API, SSL certificate, and Lighthouse (performance). The Terraform layer is an implementation detail contributors never touch.
+
+**Docker-based local runtime emulation.** New Relic's synthetic runtime is containerised. Running the same Docker image locally lets engineers execute and debug monitor scripts before committing — catching the majority of script errors before they reached the pipeline.
+
+**Private monitoring locations on AWS EKS.** Two synthetic minion deployments — Dublin (EU) and Washington DC (US East) — enabled monitoring of internal APIs, VPN-gated services, and geographically specific latency baselines that public locations couldn't cover.
+
+**Secure credentials as Terraform resources.** 20+ credentials are managed as code, referenced by name in monitor configuration. Sensitive values never appear in config files.
+
+**Semantic versioning with automated releases.** Every merge to `main` triggers a version bump and changelog entry. Each monitor change is traceable to a version, a PR, and a Jira ticket — satisfying compliance requirements that the previous UI-driven approach couldn't meet.
+
+## What I Built
+
+- Three-stage GitHub Actions pipeline: integration (lint, Terraform validate, CSV validation, Jira ticket enforcement) → delivery (Terraform plan + diff posted to PR) → deployment (apply on merge, tag release, update changelog)
+- CSV validation step that checks required fields, valid enum values, and URL format before Terraform is invoked — moving error feedback from minutes to seconds
+- Scheduled pipeline job to detect when private minion Kubernetes deployments fall behind the latest New Relic runtime version and raise an automated PR to update the configuration
+- Remote Terraform state backend with locking to eliminate concurrent-apply conflicts
+
+## Result
+
+- **Time to add a monitor**: ~2 hours (UI) → under 15 minutes (CSV row + PR + automated deploy)
+- **Silent failures eliminated**: pipeline caught script errors before production on dozens of occasions; defects that previously went undetected for days now surface in minutes
+- **Scale**: grew from a proof of concept to ~400 monitors across 6 types and 2 private locations over 3 years
+- **Reliability**: 300+ releases with zero unplanned outages caused by the deployment pipeline
+- **Incidents detected first**: several production incidents across critical digital properties were detected by private location alerts before real-user impact was measurable
+- **Compliance**: complete audit trail — every configuration change is version-controlled, peer-reviewed, and linked to a Jira ticket
