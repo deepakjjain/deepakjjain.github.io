@@ -21,7 +21,7 @@ pnpm-debug.log*
 
 #Claude
 .claude/
-CLAUDE.node_modules
+CLAUDE.md
 
 #Docs
 docs/
