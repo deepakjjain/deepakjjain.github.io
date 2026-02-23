@@ -1,0 +1,1 @@
+import{g as r}from"./index.CB87Sc6I.js";const t=window.matchMedia("(prefers-reduced-motion: reduce)").matches;t||Array.from(document.querySelectorAll("#hero-content > *")).forEach((e,o)=>{r.from(e,{opacity:e.tagName==="H1"?1:0,y:28,duration:.75,ease:"power2.out",delay:.1+o*.12})});
